@@ -19,26 +19,19 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-    // ============================================================
-    // 🔥 FIREBASE CONFIGURATION
-    // Ganti dengan config Firebase anda dari Firebase Console
-    // Lihat SETUP.md untuk panduan lengkap
-    // ============================================================
-const firebaseConfig = {
-  apiKey: "AIzaSyBQnlZiFVM9E-WuXir34Fm-i8vi3FB49dw",
-  authDomain: "makmal-skkg.firebaseapp.com",
-  projectId: "makmal-skkg",
-  storageBucket: "makmal-skkg.firebasestorage.app",
-  messagingSenderId: "1083262881036",
-  appId: "1:1083262881036:web:19ae25765f9c83e330cd29",
-  measurementId: "G-DMVJ3RRYFQ"
-};
-    // ============================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQnlZiFVM9E-WuXir34Fm-i8vi3FB49dw",
+      authDomain: "makmal-skkg.firebaseapp.com",
+      projectId: "makmal-skkg",
+      storageBucket: "makmal-skkg.firebasestorage.app",
+      messagingSenderId: "1083262881036",
+      appId: "1:1083262881036:web:19ae25765f9c83e330cd29",
+      measurementId: "G-DMVJ3RRYFQ"
+    };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // Expose to global scope
     window._db = db;
     window._firebase = { collection, addDoc, getDocs, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp };
     window._firebaseReady = true;
@@ -60,7 +53,6 @@ const firebaseConfig = {
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .offline-badge { display: none; }
     .offline .offline-badge { display: inline-flex; }
-    /* PWA Install banner */
     #install-banner { display: none; }
   </style>
 </head>
@@ -390,10 +382,15 @@ let deferredPrompt = null;
 let unsubscribeBookings = null;
 let unsubscribeTeachers = null;
 
+// ============================================================
+// SLOTS — ditambah 12:15–12:45 dan 12:45–1:15 PTG
+// ============================================================
 const SLOTS = [
   '7:45 – 8:15', '8:15 – 8:45', '8:45 – 9:15', '9:15 – 9:45',
-  '10:15 – 10:45', '10:45 – 11:15', '11:15 – 11:45', '11:45 – 12:15'
+  '10:15 – 10:45', '10:45 – 11:15', '11:15 – 11:45', '11:45 – 12:15',
+  '12:15 – 12:45', '12:45 – 1:15'
 ];
+
 const DAYS_MS = ['Ahad','Isnin','Selasa','Rabu','Khamis'];
 const SUBJECTS = [
   'Bahasa Melayu','Bahasa Inggeris','Matematik','Sains',
@@ -447,15 +444,13 @@ function fbListen(collectionName, callback) {
 // INIT
 // ============================================================
 document.addEventListener('firebase-ready', () => {
-  // Check if config is still default
-  if (window._db._databaseId.projectId === 'GANTI_DENGAN_PROJECT_ID_ANDA' || 
-      !window._db._databaseId.projectId || 
+  if (window._db._databaseId.projectId === 'GANTI_DENGAN_PROJECT_ID_ANDA' ||
+      !window._db._databaseId.projectId ||
       window._db._databaseId.projectId.includes('GANTI')) {
     document.getElementById('firebase-warning').classList.remove('hidden');
     return;
   }
 
-  // Start real-time listeners
   unsubscribeBookings = fbListen('bookings', (data) => {
     allBookings = data;
     renderSlots();
@@ -467,7 +462,6 @@ document.addEventListener('firebase-ready', () => {
   unsubscribeTeachers = fbListen('teachers', (data) => {
     allTeachers = data;
     if (isAdmin) renderRegisteredGurus();
-    // Auto-login check after teachers load
     if (currentGuru) {
       const teacher = allTeachers.find(t => t.nama_guru === currentGuru);
       if (teacher) {
@@ -653,7 +647,7 @@ function renderSlots() {
       clickable = false;
     }
 
-    html += `<div class="border-2 rounded-xl p-3 ${cls} ${clickable ? 'cursor-pointer hover:scale-[1.02] transition-transform active:scale-95' : 'cursor-not-allowed opacity-80'}" 
+    html += `<div class="border-2 rounded-xl p-3 ${cls} ${clickable ? 'cursor-pointer hover:scale-[1.02] transition-transform active:scale-95' : 'cursor-not-allowed opacity-80'}"
       ${clickable ? `onclick="openBooking('${slot}','${date}')"` : ''}>
       <div class="font-bold text-xs mb-1.5">⏰ ${slot}</div>
       <div class="flex flex-col gap-0.5">${content}</div>
@@ -684,7 +678,6 @@ async function confirmBooking() {
   const btn = document.getElementById('btn-confirm');
   btn.disabled = true; btn.textContent = 'Menyimpan...';
 
-  // Double-check slot not taken
   const conflict = allBookings.find(b => b.tarikh === selectedSlot.date && b.slot === selectedSlot.slot && b.status === 'Booked');
   if (conflict) {
     showToast('Slot ini telah ditempah orang lain!', 'error');
