@@ -2,7 +2,8 @@
   "name": "Sistem Tempahan Makmal Komputer SK Kuala Geris",
   "short_name": "Makmal SK Kuala Geris",
   "description": "Sistem Tempahan Makmal Komputer untuk guru-guru SK Kuala Geris",
-  "start_url": "/",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#059669",
   "theme_color": "#059669",
@@ -12,7 +13,13 @@
       "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["education", "productivity"],
