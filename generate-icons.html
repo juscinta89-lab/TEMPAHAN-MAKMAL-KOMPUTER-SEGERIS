@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head><title>Generate Icons</title></head>
+<body>
+<p>Klik butang di bawah untuk jana semua ikon PWA. Simpan ke folder <code>icons/</code></p>
+<div id="icons" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;"></div>
+<button onclick="generateAll()" style="padding:10px 20px;background:#059669;color:white;border:none;border-radius:8px;cursor:pointer;font-size:16px;margin-bottom:20px;">
+  Jana Semua Ikon
+</button>
+<script>
+const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+
+function generateIcon(size) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  
+  // Background gradient
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, '#059669');
+  grad.addColorStop(1, '#0d9488');
+  
+  // Rounded rectangle background
+  const radius = size * 0.2;
+  ctx.beginPath();
+  ctx.moveTo(radius, 0);
+  ctx.lineTo(size - radius, 0);
+  ctx.quadraticCurveTo(size, 0, size, radius);
+  ctx.lineTo(size, size - radius);
+  ctx.quadraticCurveTo(size, size, size - radius, size);
+  ctx.lineTo(radius, size);
+  ctx.quadraticCurveTo(0, size, 0, size - radius);
+  ctx.lineTo(0, radius);
+  ctx.quadraticCurveTo(0, 0, radius, 0);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+  
+  // Computer emoji / icon
+  const fontSize = size * 0.5;
+  ctx.font = `${fontSize}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🖥️', size/2, size/2);
+  
+  return canvas;
+}
+
+function generateAll() {
+  const container = document.getElementById('icons');
+  container.innerHTML = '';
+  
+  sizes.forEach(size => {
+    const canvas = generateIcon(size);
+    
+    const div = document.createElement('div');
+    div.style.textAlign = 'center';
+    div.appendChild(canvas);
+    
+    const label = document.createElement('p');
+    label.textContent = `${size}x${size}`;
+    label.style.fontSize = '12px';
+    div.appendChild(label);
+    
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `icon-${size}.png`;
+    link.textContent = 'Download';
+    link.style.display = 'block';
+    link.style.fontSize = '12px';
+    link.style.color = '#059669';
+    div.appendChild(link);
+    
+    container.appendChild(div);
+  });
+  
+  alert('Ikon berjaya dijana! Klik "Download" pada setiap ikon dan simpan ke folder icons/');
+}
+</script>
+</body>
+</html>

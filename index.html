@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="ms" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#059669">
+  <meta name="description" content="Sistem Tempahan Makmal Komputer SK Kuala Geris">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Makmal SK Kuala Geris">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <title>Sistem Tempahan Makmal Komputer SK Kuala Geris</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    // ============================================================
+    // 🔥 FIREBASE CONFIGURATION
+    // Ganti dengan config Firebase anda dari Firebase Console
+    // Lihat SETUP.md untuk panduan lengkap
+    // ============================================================
+    const firebaseConfig = {
+      apiKey: "GANTI_DENGAN_API_KEY_ANDA",
+      authDomain: "GANTI_DENGAN_AUTH_DOMAIN_ANDA",
+      projectId: "GANTI_DENGAN_PROJECT_ID_ANDA",
+      storageBucket: "GANTI_DENGAN_STORAGE_BUCKET_ANDA",
+      messagingSenderId: "GANTI_DENGAN_MESSAGING_SENDER_ID_ANDA",
+      appId: "GANTI_DENGAN_APP_ID_ANDA"
+    };
+    // ============================================================
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Expose to global scope
+    window._db = db;
+    window._firebase = { collection, addDoc, getDocs, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp };
+    window._firebaseReady = true;
+    document.dispatchEvent(new Event('firebase-ready'));
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .slot-available { background: #d1fae5; border-color: #10b981; color: #065f46; }
+    .slot-booked { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+    .slot-own { background: #dbeafe; border-color: #3b82f6; color: #1e40af; }
+    .slot-locked { background: #f3f4f6; border-color: #9ca3af; color: #6b7280; }
+    .sidebar-link { transition: all 0.2s; }
+    .sidebar-link:hover, .sidebar-link.active { background: rgba(255,255,255,0.15); }
+    .toast { animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s; }
+    @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .offline-badge { display: none; }
+    .offline .offline-badge { display: inline-flex; }
+    /* PWA Install banner */
+    #install-banner { display: none; }
+  </style>
+</head>
+<body class="h-full bg-gray-50">
+<div id="app" class="h-full w-full flex overflow-auto">
+
+  <!-- Firebase Config Warning -->
+  <div id="firebase-warning" class="fixed inset-0 bg-amber-50 z-[200] flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl p-8 max-w-md shadow-2xl border-2 border-amber-400">
+      <div class="text-4xl mb-4 text-center">⚠️</div>
+      <h2 class="text-xl font-bold text-amber-800 mb-3 text-center">Firebase Belum Dikonfigurasi</h2>
+      <p class="text-sm text-gray-600 mb-4">Sila buka fail <code class="bg-gray-100 px-1 rounded">index.html</code> dan gantikan Firebase config dengan config projek Firebase anda.</p>
+      <p class="text-sm text-gray-600 mb-4">Rujuk <strong>SETUP.md</strong> untuk panduan langkah demi langkah.</p>
+      <div class="bg-gray-900 text-green-400 text-xs p-4 rounded-lg font-mono overflow-auto">
+        apiKey: "GANTI_DENGAN_API_KEY_ANDA"<br>
+        authDomain: "..."<br>
+        projectId: "..."<br>
+        ...
+      </div>
+    </div>
+  </div>
+
+  <!-- PWA Install Banner -->
+  <div id="install-banner" class="fixed bottom-4 left-4 right-4 bg-emerald-700 text-white rounded-xl p-4 shadow-2xl z-50 flex items-center justify-between">
+    <div>
+      <p class="font-semibold text-sm">📱 Pasang Aplikasi</p>
+      <p class="text-xs text-emerald-200">Tambah ke skrin utama untuk akses mudah</p>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="installPWA()" class="px-3 py-2 bg-white text-emerald-700 rounded-lg text-xs font-bold">Pasang</button>
+      <button onclick="dismissInstall()" class="px-3 py-2 text-emerald-200 text-xs">Tidak</button>
+    </div>
+  </div>
+
+  <!-- Offline Badge -->
+  <div class="offline-badge fixed top-2 left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs px-3 py-1 rounded-full z-[100] items-center gap-1">
+    <span>⚡</span> Tiada sambungan internet
+  </div>
+
+  <!-- Login Screen -->
+  <div id="login-screen" class="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-600 to-teal-700 p-4">
+    <div class="w-full max-w-md">
+      <div class="bg-white rounded-2xl shadow-2xl p-8">
+        <div class="text-center mb-8">
+          <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <span class="text-3xl">🖥️</span>
+          </div>
+          <h1 class="text-2xl font-800 text-emerald-700 mb-1">SISTEM TEMPAHAN</h1>
+          <h2 class="text-lg font-bold text-emerald-600 mb-1">MAKMAL KOMPUTER</h2>
+          <p class="text-gray-500 text-sm">SK Kuala Geris</p>
+        </div>
+
+        <!-- Login Form -->
+        <div id="login-form" class="space-y-4">
+          <div>
+            <label class="text-sm font-semibold text-gray-700">Nama Guru</label>
+            <input type="text" id="login-name" placeholder="Masukkan nama anda" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-gray-700">Kata Laluan</label>
+            <input type="password" id="login-password" placeholder="Masukkan kata laluan" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" onkeydown="if(event.key==='Enter')loginGuru()">
+          </div>
+          <button onclick="loginGuru()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition">Log Masuk</button>
+          <p class="text-center text-gray-600 text-sm">Belum berdaftar? <button onclick="showRegisterForm()" class="text-emerald-600 font-semibold hover:underline">Daftar di sini</button></p>
+        </div>
+
+        <!-- Register Form -->
+        <div id="register-form" class="space-y-4 hidden">
+          <div>
+            <label class="text-sm font-semibold text-gray-700">Nama Lengkap</label>
+            <input type="text" id="reg-login-name" placeholder="Masukkan nama penuh" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-gray-700">Email (opsional)</label>
+            <input type="email" id="reg-login-email" placeholder="nama@sekolah.edu.my" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-gray-700">No. Telefon (opsional)</label>
+            <input type="tel" id="reg-login-phone" placeholder="012-3456789" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-gray-700">Matapelajaran</label>
+            <select id="reg-login-subject" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+              <option value="">-- Pilih Matapelajaran --</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-gray-700">Kata Laluan</label>
+            <input type="password" id="reg-login-password" placeholder="Minimum 6 aksara" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+          </div>
+          <button onclick="registerNewGuru()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition">Daftar Sekarang</button>
+          <p class="text-center text-gray-600 text-sm">Sudah ada akaun? <button onclick="showLoginForm()" class="text-emerald-600 font-semibold hover:underline">Log masuk</button></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="main-app" class="h-full w-full flex overflow-auto hidden">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-gradient-to-b from-emerald-700 to-teal-800 text-white flex-shrink-0 flex flex-col h-full">
+      <div class="p-5 border-b border-white/20">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-2xl">🖥️</span>
+          <div>
+            <h1 class="font-bold text-base leading-tight">SK Kuala Geris</h1>
+            <p class="text-emerald-200 text-xs">Makmal Komputer</p>
+          </div>
+        </div>
+      </div>
+      <nav class="flex-1 p-3 space-y-1">
+        <button onclick="switchPage('booking')" class="sidebar-link active w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left" data-page="booking">
+          <i data-lucide="calendar" class="w-5 h-5"></i> Tempahan Slot
+        </button>
+        <button onclick="switchPage('history')" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left" data-page="history">
+          <i data-lucide="scroll-text" class="w-5 h-5"></i> Sejarah
+        </button>
+        <button onclick="switchPage('stats')" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left" data-page="stats">
+          <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Statistik
+        </button>
+        <button onclick="switchPage('admin')" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left" data-page="admin">
+          <i data-lucide="shield" class="w-5 h-5"></i> Mode Admin
+        </button>
+      </nav>
+      <div class="p-4 border-t border-white/20">
+        <div class="text-sm">
+          <p class="text-emerald-200 text-xs">Guru aktif:</p>
+          <p id="guru-display" class="font-semibold text-white text-sm"></p>
+          <button onclick="logoutGuru()" class="mt-2 text-xs text-emerald-300 underline hover:text-white">Log Keluar</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Mobile header -->
+    <div id="mobile-header" class="hidden fixed top-0 left-0 right-0 bg-emerald-700 text-white p-3 z-50 flex items-center justify-between">
+      <button onclick="toggleSidebar()" class="p-1"><i data-lucide="menu" class="w-6 h-6"></i></button>
+      <span class="font-bold text-sm">SK Kuala Geris - Makmal Komputer</span>
+      <span></span>
+    </div>
+
+    <!-- Mobile sidebar overlay -->
+    <div id="sidebar-overlay" class="hidden fixed inset-0 bg-black/50 z-30" onclick="closeSidebar()"></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 h-full overflow-auto">
+
+      <!-- Booking Page -->
+      <div id="page-booking" class="p-4 md:p-6 fade-in">
+        <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <h2 class="text-2xl font-bold text-gray-800">📅 Tempahan Slot</h2>
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-600 font-medium">Tarikh:</label>
+            <input type="date" id="booking-date" onchange="renderSlots()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+          </div>
+        </div>
+        <div class="flex gap-3 mb-4 flex-wrap text-xs">
+          <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-green-200 border border-green-500"></span> Kosong</span>
+          <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-red-200 border border-red-500"></span> Ditempah</span>
+          <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-blue-200 border border-blue-500"></span> Tempahan Anda</span>
+          <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-gray-200 border border-gray-400"></span> Dikunci</span>
+        </div>
+        <div id="slots-grid" class="grid gap-3"></div>
+      </div>
+
+      <!-- History Page -->
+      <div id="page-history" class="p-4 md:p-6 fade-in hidden">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">📜 Sejarah Tempahan</h2>
+        <div id="history-list" class="space-y-3"></div>
+      </div>
+
+      <!-- Stats Page -->
+      <div id="page-stats" class="p-4 md:p-6 fade-in hidden">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">📊 Statistik Penggunaan</h2>
+        <div class="grid md:grid-cols-2 gap-6">
+          <div class="bg-white rounded-xl p-5 shadow-sm border">
+            <h3 class="font-semibold text-gray-700 mb-4">Tempahan Mengikut Guru</h3>
+            <div id="chart-guru" class="space-y-2"></div>
+          </div>
+          <div class="bg-white rounded-xl p-5 shadow-sm border">
+            <h3 class="font-semibold text-gray-700 mb-4">Penggunaan Mengikut Hari</h3>
+            <div id="chart-day" class="space-y-2"></div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow-sm border mt-6">
+          <h3 class="font-semibold text-gray-700 mb-2">Ringkasan</h3>
+          <div id="stats-summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3"></div>
+        </div>
+      </div>
+
+      <!-- Admin Page -->
+      <div id="page-admin" class="p-4 md:p-6 fade-in hidden">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">🛡️ Mode Admin</h2>
+        <div id="admin-login-panel" class="max-w-sm">
+          <div class="bg-white rounded-xl p-6 shadow-sm border">
+            <p class="text-sm text-gray-600 mb-4">Sila log masuk sebagai admin untuk mengurus sistem.</p>
+            <input type="text" id="admin-user" placeholder="Username" class="w-full px-3 py-2 border rounded-lg mb-3 text-sm">
+            <input type="password" id="admin-pass" placeholder="Password" class="w-full px-3 py-2 border rounded-lg mb-3 text-sm" onkeydown="if(event.key==='Enter')adminLogin()">
+            <button onclick="adminLogin()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm">Log Masuk Admin</button>
+            <p id="admin-error" class="text-red-500 text-xs mt-2 hidden">Username atau password salah.</p>
+          </div>
+        </div>
+
+        <div id="admin-panel" class="hidden space-y-6">
+          <div class="flex items-center justify-between flex-wrap gap-3">
+            <p class="text-emerald-700 font-semibold">✓ Log masuk sebagai Admin</p>
+            <button onclick="adminLogout()" class="text-sm text-red-500 underline">Log Keluar Admin</button>
+          </div>
+
+          <!-- Registered Teachers -->
+          <div class="bg-white rounded-xl p-5 shadow-sm border">
+            <h3 class="font-semibold text-gray-700 mb-3">👥 Senarai Guru Terdaftar</h3>
+            <div class="flex gap-2 mb-3">
+              <input type="text" id="reg-search" oninput="renderRegisteredGurus()" placeholder="Cari nama atau email..." class="flex-1 px-3 py-2 border rounded-lg text-sm">
+              <button onclick="exportGurus()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i> Export
+              </button>
+            </div>
+            <div id="gurus-list" class="space-y-2 max-h-72 overflow-auto"></div>
+          </div>
+
+          <!-- Lock Controls -->
+          <div class="bg-white rounded-xl p-5 shadow-sm border">
+            <h3 class="font-semibold text-gray-700 mb-3">🔒 Kunci Slot</h3>
+            <div class="flex flex-wrap gap-3 items-end mb-4">
+              <div>
+                <label class="text-xs text-gray-500">Tarikh</label>
+                <input type="date" id="lock-date" class="block px-3 py-2 border rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">Slot</label>
+                <select id="lock-slot" class="block px-3 py-2 border rounded-lg text-sm">
+                  <option value="all">Semua (Hari Penuh)</option>
+                </select>
+              </div>
+              <button onclick="lockSlot()" class="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-lg text-sm font-medium">🔒 Kunci</button>
+            </div>
+            <div class="border-t pt-4">
+              <p class="text-xs text-gray-600 mb-2">Slot Dikunci:</p>
+              <div id="locked-slots-list" class="space-y-2 max-h-48 overflow-auto"></div>
+            </div>
+          </div>
+
+          <!-- All Bookings -->
+          <div class="bg-white rounded-xl p-5 shadow-sm border">
+            <h3 class="font-semibold text-gray-700 mb-3">📋 Semua Tempahan</h3>
+            <div class="flex gap-2 mb-3">
+              <input type="text" id="admin-search" oninput="renderAdminBookings()" placeholder="Cari nama guru..." class="flex-1 px-3 py-2 border rounded-lg text-sm">
+              <button onclick="exportBookings()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i> Export
+              </button>
+            </div>
+            <div id="admin-bookings" class="space-y-2 max-h-96 overflow-auto"></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Booking Modal -->
+<div id="booking-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+    <h3 class="text-lg font-bold text-gray-800 mb-4">Tempah Slot</h3>
+    <p id="modal-slot-info" class="text-sm text-emerald-600 font-medium mb-4 bg-emerald-50 px-3 py-2 rounded-lg"></p>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs font-medium text-gray-600">Subjek</label>
+        <select id="modal-subjek" class="w-full px-3 py-2 border rounded-lg text-sm mt-1">
+          <option value="">-- Pilih Subjek --</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-600">Kelas</label>
+        <select id="modal-kelas" class="w-full px-3 py-2 border rounded-lg text-sm mt-1">
+          <option value="">-- Pilih Kelas --</option>
+          <option>1 ALPHA</option><option>1 BETA</option>
+          <option>2 ALPHA</option><option>2 BETA</option>
+          <option>3 ALPHA</option><option>3 BETA</option>
+          <option>4 ALPHA</option><option>4 BETA</option>
+          <option>5 ALPHA</option><option>5 BETA</option>
+          <option>6 ALPHA</option><option>6 BETA</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-5">
+      <button onclick="closeModal()" class="flex-1 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Batal</button>
+      <button onclick="confirmBooking()" id="btn-confirm" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium">Tempah</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div id="delete-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+    <h3 class="text-lg font-bold text-gray-800 mb-2">⚠️ Padam Tempahan?</h3>
+    <p class="text-sm text-gray-600 mb-4">Tindakan ini tidak boleh dibatalkan.</p>
+    <div class="flex gap-3">
+      <button onclick="closeDeleteModal()" class="flex-1 py-2 border border-gray-300 rounded-lg text-sm font-medium">Batal</button>
+      <button onclick="confirmDelete()" id="btn-delete-confirm" class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium">Padam</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container" class="fixed top-4 right-4 z-[100] space-y-2"></div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="fixed inset-0 bg-white/80 z-[150] flex items-center justify-center hidden">
+  <div class="text-center">
+    <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+    <p class="text-gray-600 text-sm font-medium">Menyambung ke pangkalan data...</p>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let allBookings = [];
+let allTeachers = [];
+let currentGuru = localStorage.getItem('guru_name') || '';
+let isAdmin = false;
+let selectedSlot = null;
+let deleteTarget = null;
+let deferredPrompt = null;
+let unsubscribeBookings = null;
+let unsubscribeTeachers = null;
+
+const SLOTS = [
+  '7:45 – 8:15', '8:15 – 8:45', '8:45 – 9:15', '9:15 – 9:45',
+  '10:15 – 10:45', '10:45 – 11:15', '11:15 – 11:45', '11:45 – 12:15'
+];
+const DAYS_MS = ['Ahad','Isnin','Selasa','Rabu','Khamis'];
+const SUBJECTS = [
+  'Bahasa Melayu','Bahasa Inggeris','Matematik','Sains',
+  'Pendidikan Jasmani dan Kesihatan','Seni Visual','Muzik',
+  'Teknologi Maklumat','Pendidikan Moral','Pendidikan Kewarganegaraan',
+  'Pengajian Sosial','Bahasa Cina','Bahasa Arab','Pendidikan Agama Islam',
+  'Komputer & Maklumat','STEM','Projek Sains','Kesenian Tradisional'
+];
+
+// ============================================================
+// FIREBASE FUNCTIONS
+// ============================================================
+async function fbAdd(collectionName, data) {
+  const { collection, addDoc, serverTimestamp } = window._firebase;
+  try {
+    const docRef = await addDoc(collection(window._db, collectionName), {
+      ...data,
+      created_at: serverTimestamp()
+    });
+    return { isOk: true, id: docRef.id };
+  } catch (e) {
+    console.error('Firebase add error:', e);
+    return { isOk: false, error: e };
+  }
+}
+
+async function fbDelete(collectionName, id) {
+  const { doc, deleteDoc } = window._firebase;
+  try {
+    await deleteDoc(doc(window._db, collectionName, id));
+    return { isOk: true };
+  } catch (e) {
+    console.error('Firebase delete error:', e);
+    return { isOk: false, error: e };
+  }
+}
+
+function fbListen(collectionName, callback) {
+  const { collection, onSnapshot, query, orderBy } = window._firebase;
+  const q = query(collection(window._db, collectionName), orderBy('created_at', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const data = snapshot.docs.map(d => ({ ...d.data(), __id: d.id }));
+    callback(data);
+  }, (err) => {
+    console.error('Firebase listen error:', err);
+    showToast('Ralat sambungan Firebase. Semak console.', 'error');
+  });
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('firebase-ready', () => {
+  // Check if config is still default
+  if (window._db._databaseId.projectId === 'GANTI_DENGAN_PROJECT_ID_ANDA' || 
+      !window._db._databaseId.projectId || 
+      window._db._databaseId.projectId.includes('GANTI')) {
+    document.getElementById('firebase-warning').classList.remove('hidden');
+    return;
+  }
+
+  // Start real-time listeners
+  unsubscribeBookings = fbListen('bookings', (data) => {
+    allBookings = data;
+    renderSlots();
+    if (isPageActive('history')) renderHistory();
+    if (isPageActive('stats')) renderStats();
+    if (isAdmin) { renderAdminBookings(); renderLockedSlots(); }
+  });
+
+  unsubscribeTeachers = fbListen('teachers', (data) => {
+    allTeachers = data;
+    if (isAdmin) renderRegisteredGurus();
+    // Auto-login check after teachers load
+    if (currentGuru) {
+      const teacher = allTeachers.find(t => t.nama_guru === currentGuru);
+      if (teacher) {
+        document.getElementById('guru-display').textContent = currentGuru;
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('main-app').classList.remove('hidden');
+        renderSlots();
+      } else {
+        localStorage.removeItem('guru_name');
+        currentGuru = '';
+      }
+    }
+  });
+});
+
+function isPageActive(page) {
+  return !document.getElementById('page-' + page).classList.contains('hidden');
+}
+
+// Set today's date
+const today = new Date();
+document.getElementById('booking-date').value = today.toISOString().split('T')[0];
+
+// Populate dropdowns
+function populateSubjects() {
+  const selects = [
+    document.getElementById('reg-login-subject'),
+    document.getElementById('modal-subjek')
+  ];
+  selects.forEach(select => {
+    if (!select) return;
+    SUBJECTS.forEach(subject => {
+      const option = document.createElement('option');
+      option.value = subject;
+      option.textContent = subject;
+      select.appendChild(option);
+    });
+  });
+}
+populateSubjects();
+
+// Populate lock slot dropdown
+const lockSelect = document.getElementById('lock-slot');
+SLOTS.forEach(s => {
+  const o = document.createElement('option');
+  o.value = s; o.textContent = s;
+  lockSelect.appendChild(o);
+});
+
+// ============================================================
+// AUTH
+// ============================================================
+function showLoginForm() {
+  document.getElementById('login-form').classList.remove('hidden');
+  document.getElementById('register-form').classList.add('hidden');
+}
+
+function showRegisterForm() {
+  document.getElementById('login-form').classList.add('hidden');
+  document.getElementById('register-form').classList.remove('hidden');
+}
+
+async function loginGuru() {
+  const name = document.getElementById('login-name').value.trim();
+  const password = document.getElementById('login-password').value.trim();
+  if (!name || !password) { showToast('Sila isi semua medan.', 'warning'); return; }
+
+  const teacher = allTeachers.find(t => t.nama_guru === name && t.password === password);
+  if (!teacher) { showToast('Nama guru atau kata laluan salah.', 'error'); return; }
+
+  currentGuru = name;
+  localStorage.setItem('guru_name', name);
+  document.getElementById('guru-display').textContent = currentGuru;
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('main-app').classList.remove('hidden');
+  document.getElementById('login-name').value = '';
+  document.getElementById('login-password').value = '';
+  renderSlots();
+  showToast(`Selamat datang, ${name}! ✓`, 'success');
+}
+
+async function registerNewGuru() {
+  const name = document.getElementById('reg-login-name').value.trim();
+  const email = document.getElementById('reg-login-email').value.trim();
+  const phone = document.getElementById('reg-login-phone').value.trim();
+  const subject = document.getElementById('reg-login-subject').value.trim();
+  const password = document.getElementById('reg-login-password').value.trim();
+
+  if (!name || !password) { showToast('Nama dan kata laluan diperlukan.', 'warning'); return; }
+  if (password.length < 6) { showToast('Kata laluan mesti sekurang-kurangnya 6 aksara.', 'warning'); return; }
+  if (allTeachers.find(t => t.nama_guru.toLowerCase() === name.toLowerCase())) {
+    showToast('Nama guru ini sudah terdaftar.', 'warning'); return;
+  }
+
+  const result = await fbAdd('teachers', {
+    nama_guru: name,
+    email: email || '-',
+    phone: phone || '-',
+    subjek: subject || '-',
+    status: 'Active',
+    type: 'teacher',
+    password: password
+  });
+
+  if (result.isOk) {
+    showToast('Pendaftaran berjaya! Sila log masuk.', 'success');
+    document.getElementById('reg-login-name').value = '';
+    document.getElementById('reg-login-email').value = '';
+    document.getElementById('reg-login-phone').value = '';
+    document.getElementById('reg-login-subject').value = '';
+    document.getElementById('reg-login-password').value = '';
+    showLoginForm();
+  } else {
+    showToast('Gagal mendaftar. Semak sambungan internet.', 'error');
+  }
+}
+
+function logoutGuru() {
+  currentGuru = '';
+  localStorage.removeItem('guru_name');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('main-app').classList.add('hidden');
+  document.getElementById('login-name').value = '';
+  document.getElementById('login-password').value = '';
+  showLoginForm();
+  showToast('Anda telah log keluar.', 'info');
+}
+
+// ============================================================
+// PAGES
+// ============================================================
+function switchPage(page) {
+  document.querySelectorAll('[id^="page-"]').forEach(p => p.classList.add('hidden'));
+  document.getElementById('page-' + page).classList.remove('hidden');
+  document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  closeSidebar();
+  if (page === 'history') renderHistory();
+  if (page === 'stats') renderStats();
+  if (page === 'admin') { renderAdminBookings(); if (isAdmin) renderRegisteredGurus(); }
+}
+
+// ============================================================
+// SLOTS
+// ============================================================
+function renderSlots() {
+  const date = document.getElementById('booking-date').value;
+  const grid = document.getElementById('slots-grid');
+  if (!date) { grid.innerHTML = '<p class="text-gray-500 text-sm">Sila pilih tarikh.</p>'; return; }
+
+  const d = new Date(date + 'T00:00:00');
+  const dayNum = d.getDay();
+  if (dayNum === 5 || dayNum === 6) {
+    grid.innerHTML = '<div class="p-4 bg-red-50 border border-red-200 rounded-xl"><p class="text-red-600 text-sm font-medium">⚠️ Hari ini bukan hari persekolahan (Jumaat/Sabtu).</p></div>';
+    return;
+  }
+
+  const dayName = DAYS_MS[dayNum];
+  const dayBookings = allBookings.filter(b => b.tarikh === date);
+
+  let html = `<p class="text-sm text-gray-500 mb-2 font-medium">${dayName}, ${date}</p>`;
+  html += '<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">';
+
+  SLOTS.forEach(slot => {
+    const booking = dayBookings.find(b => b.slot === slot && b.status !== 'Deleted');
+    const isLocked = dayBookings.find(b => b.slot === slot && b.status === 'Locked');
+    let cls = 'slot-available';
+    let content = '<span class="text-xs font-medium">✅ Kosong</span>';
+    let clickable = true;
+
+    if (isLocked) {
+      cls = 'slot-locked';
+      content = '<span class="text-xs font-medium">🔒 Dikunci</span>';
+      clickable = false;
+    } else if (booking && booking.status === 'Booked') {
+      if (booking.nama_guru === currentGuru) {
+        cls = 'slot-own';
+        content = `<span class="text-xs font-medium">👤 ${booking.nama_guru}</span><span class="text-xs opacity-80">${booking.kelas} • ${booking.subjek}</span>`;
+      } else {
+        cls = 'slot-booked';
+        content = `<span class="text-xs font-medium">❌ ${booking.nama_guru}</span><span class="text-xs opacity-80">${booking.kelas}</span>`;
+      }
+      clickable = false;
+    }
+
+    html += `<div class="border-2 rounded-xl p-3 ${cls} ${clickable ? 'cursor-pointer hover:scale-[1.02] transition-transform active:scale-95' : 'cursor-not-allowed opacity-80'}" 
+      ${clickable ? `onclick="openBooking('${slot}','${date}')"` : ''}>
+      <div class="font-bold text-xs mb-1.5">⏰ ${slot}</div>
+      <div class="flex flex-col gap-0.5">${content}</div>
+    </div>`;
+  });
+
+  html += '</div>';
+  html += '<div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">☕ <strong>Rehat Tahap 1:</strong> 9:45 – 10:15 (tidak boleh ditempah)</div>';
+  grid.innerHTML = html;
+}
+
+function openBooking(slot, date) {
+  if (!currentGuru) { showToast('Sila log masuk terlebih dahulu.', 'warning'); return; }
+  selectedSlot = { slot, date };
+  document.getElementById('modal-slot-info').textContent = `📅 ${date}  |  ⏰ ${slot}`;
+  document.getElementById('modal-subjek').value = '';
+  document.getElementById('modal-kelas').value = '';
+  document.getElementById('booking-modal').classList.remove('hidden');
+}
+
+function closeModal() { document.getElementById('booking-modal').classList.add('hidden'); }
+
+async function confirmBooking() {
+  const subjek = document.getElementById('modal-subjek').value.trim();
+  const kelas = document.getElementById('modal-kelas').value;
+  if (!subjek || !kelas) { showToast('Sila lengkapkan semua maklumat.', 'warning'); return; }
+
+  const btn = document.getElementById('btn-confirm');
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+  // Double-check slot not taken
+  const conflict = allBookings.find(b => b.tarikh === selectedSlot.date && b.slot === selectedSlot.slot && b.status === 'Booked');
+  if (conflict) {
+    showToast('Slot ini telah ditempah orang lain!', 'error');
+    btn.disabled = false; btn.textContent = 'Tempah';
+    closeModal();
+    return;
+  }
+
+  const result = await fbAdd('bookings', {
+    nama_guru: currentGuru,
+    subjek,
+    kelas,
+    tarikh: selectedSlot.date,
+    slot: selectedSlot.slot,
+    status: 'Booked'
+  });
+
+  btn.disabled = false; btn.textContent = 'Tempah';
+  if (result.isOk) {
+    showToast('Tempahan berjaya! ✓', 'success');
+    closeModal();
+  } else {
+    showToast('Gagal menyimpan tempahan. Semak sambungan.', 'error');
+  }
+}
+
+// ============================================================
+// HISTORY
+// ============================================================
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  if (!currentGuru) { list.innerHTML = '<p class="text-gray-500 text-sm">Sila log masuk untuk melihat sejarah.</p>'; return; }
+
+  const mine = allBookings.filter(b => b.nama_guru === currentGuru && b.status === 'Booked');
+  if (mine.length === 0) { list.innerHTML = '<p class="text-gray-500 text-sm">Tiada tempahan lagi.</p>'; return; }
+
+  list.innerHTML = mine.map(b => `
+    <div class="bg-white border rounded-xl p-4 flex items-center justify-between shadow-sm">
+      <div>
+        <p class="font-semibold text-sm text-gray-800">📅 ${b.tarikh} | ⏰ ${b.slot}</p>
+        <p class="text-xs text-gray-500 mt-1">🏫 ${b.kelas} &nbsp;•&nbsp; 📚 ${b.subjek}</p>
+      </div>
+      <button onclick="requestDelete('${b.__id}')" class="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition">
+        <i data-lucide="trash-2" class="w-4 h-4"></i>
+      </button>
+    </div>
+  `).join('');
+  lucide.createIcons();
+}
+
+// ============================================================
+// DELETE
+// ============================================================
+function requestDelete(id) {
+  deleteTarget = { collection: 'bookings', id };
+  document.getElementById('delete-modal').classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+  document.getElementById('delete-modal').classList.add('hidden');
+  deleteTarget = null;
+}
+
+async function confirmDelete() {
+  if (!deleteTarget) return;
+  const btn = document.getElementById('btn-delete-confirm');
+  btn.disabled = true; btn.textContent = 'Memadam...';
+  const result = await fbDelete(deleteTarget.collection, deleteTarget.id);
+  btn.disabled = false; btn.textContent = 'Padam';
+  closeDeleteModal();
+  if (result.isOk) showToast('Berjaya dipadam. ✓', 'success');
+  else showToast('Gagal memadam.', 'error');
+}
+
+// ============================================================
+// STATS
+// ============================================================
+function renderStats() {
+  const booked = allBookings.filter(b => b.status === 'Booked');
+  const guruCount = {};
+  booked.forEach(b => { guruCount[b.nama_guru] = (guruCount[b.nama_guru] || 0) + 1; });
+
+  const guruChart = document.getElementById('chart-guru');
+  const maxGuru = Math.max(...Object.values(guruCount), 1);
+  guruChart.innerHTML = Object.entries(guruCount).sort((a,b) => b[1]-a[1]).slice(0, 10)
+    .map(([name, count]) => `
+      <div class="flex items-center gap-2">
+        <span class="text-xs w-24 truncate text-gray-600" title="${name}">${name}</span>
+        <div class="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+          <div class="h-full bg-emerald-500 rounded-full transition-all" style="width:${(count/maxGuru)*100}%"></div>
+        </div>
+        <span class="text-xs font-medium text-gray-700 w-6 text-right">${count}</span>
+      </div>
+    `).join('') || '<p class="text-gray-400 text-sm">Tiada data.</p>';
+
+  const dayCount = {0:0,1:0,2:0,3:0,4:0};
+  booked.forEach(b => { const d = new Date(b.tarikh + 'T00:00:00').getDay(); if (d <= 4) dayCount[d]++; });
+  const maxDay = Math.max(...Object.values(dayCount), 1);
+  const dayChart = document.getElementById('chart-day');
+  dayChart.innerHTML = DAYS_MS.map((name, i) => `
+    <div class="flex items-center gap-2">
+      <span class="text-xs w-16 text-gray-600">${name}</span>
+      <div class="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+        <div class="h-full bg-teal-500 rounded-full" style="width:${(dayCount[i]/maxDay)*100}%"></div>
+      </div>
+      <span class="text-xs font-medium text-gray-700 w-6 text-right">${dayCount[i]}</span>
+    </div>
+  `).join('');
+
+  const summary = document.getElementById('stats-summary');
+  const uniqueGurus = new Set(booked.map(b => b.nama_guru)).size;
+  const thisWeek = booked.filter(b => {
+    const diff = (new Date() - new Date(b.tarikh + 'T00:00:00')) / 86400000;
+    return diff >= 0 && diff < 7;
+  }).length;
+  summary.innerHTML = `
+    <div class="bg-emerald-50 rounded-lg p-3 text-center"><p class="text-2xl font-bold text-emerald-700">${booked.length}</p><p class="text-xs text-emerald-600">Jumlah Tempahan</p></div>
+    <div class="bg-teal-50 rounded-lg p-3 text-center"><p class="text-2xl font-bold text-teal-700">${uniqueGurus}</p><p class="text-xs text-teal-600">Guru Aktif</p></div>
+    <div class="bg-blue-50 rounded-lg p-3 text-center"><p class="text-2xl font-bold text-blue-700">${thisWeek}</p><p class="text-xs text-blue-600">Minggu Ini</p></div>
+    <div class="bg-amber-50 rounded-lg p-3 text-center"><p class="text-2xl font-bold text-amber-700">${allBookings.filter(b=>b.status==='Locked').length}</p><p class="text-xs text-amber-600">Slot Dikunci</p></div>
+  `;
+}
+
+// ============================================================
+// ADMIN
+// ============================================================
+function adminLogin() {
+  const u = document.getElementById('admin-user').value;
+  const p = document.getElementById('admin-pass').value;
+  if (u === 'admin' && p === 'admin123') {
+    isAdmin = true;
+    document.getElementById('admin-login-panel').classList.add('hidden');
+    document.getElementById('admin-panel').classList.remove('hidden');
+    document.getElementById('admin-error').classList.add('hidden');
+    renderAdminBookings();
+    renderLockedSlots();
+    renderRegisteredGurus();
+  } else {
+    document.getElementById('admin-error').classList.remove('hidden');
+  }
+}
+
+function adminLogout() {
+  isAdmin = false;
+  document.getElementById('admin-login-panel').classList.remove('hidden');
+  document.getElementById('admin-panel').classList.add('hidden');
+  document.getElementById('admin-user').value = '';
+  document.getElementById('admin-pass').value = '';
+}
+
+function renderAdminBookings() {
+  if (!isAdmin) return;
+  const search = (document.getElementById('admin-search')?.value || '').toLowerCase();
+  const filtered = allBookings.filter(b => b.status === 'Booked' && b.nama_guru.toLowerCase().includes(search));
+  const container = document.getElementById('admin-bookings');
+  container.innerHTML = filtered.length === 0 ? '<p class="text-gray-400 text-sm">Tiada rekod.</p>' :
+    filtered.map(b => `
+      <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+        <div>
+          <p class="text-sm font-medium text-gray-800">👤 ${b.nama_guru} — ${b.kelas}</p>
+          <p class="text-xs text-gray-500">📅 ${b.tarikh} | ⏰ ${b.slot} | 📚 ${b.subjek}</p>
+        </div>
+        <button onclick="requestDelete('${b.__id}')" class="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded-lg transition">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+      </div>
+    `).join('');
+  lucide.createIcons();
+}
+
+async function lockSlot() {
+  const date = document.getElementById('lock-date').value;
+  const slot = document.getElementById('lock-slot').value;
+  if (!date) { showToast('Pilih tarikh untuk dikunci.', 'warning'); return; }
+
+  if (slot === 'all') {
+    for (const s of SLOTS) {
+      const exists = allBookings.find(b => b.tarikh === date && b.slot === s && (b.status === 'Locked' || b.status === 'Booked'));
+      if (!exists) {
+        await fbAdd('bookings', { nama_guru: 'Admin', subjek: '-', kelas: '-', tarikh: date, slot: s, status: 'Locked' });
+      }
+    }
+    showToast('Hari penuh dikunci. ✓', 'success');
+  } else {
+    const exists = allBookings.find(b => b.tarikh === date && b.slot === slot && (b.status === 'Locked' || b.status === 'Booked'));
+    if (exists) { showToast('Slot ini sudah ditempah/dikunci.', 'warning'); return; }
+    const r = await fbAdd('bookings', { nama_guru: 'Admin', subjek: '-', kelas: '-', tarikh: date, slot, status: 'Locked' });
+    if (r.isOk) showToast('Slot dikunci. ✓', 'success');
+  }
+}
+
+function renderLockedSlots() {
+  if (!isAdmin) return;
+  const locked = allBookings.filter(b => b.status === 'Locked');
+  const container = document.getElementById('locked-slots-list');
+  if (locked.length === 0) { container.innerHTML = '<p class="text-gray-400 text-sm">Tiada slot dikunci.</p>'; return; }
+  container.innerHTML = locked
+    .sort((a, b) => b.tarikh.localeCompare(a.tarikh) || SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot))
+    .map(lock => `
+      <div class="flex items-center justify-between p-2 bg-red-50 rounded border border-red-200">
+        <span class="text-xs text-gray-700">🔒 <strong>${lock.tarikh}</strong> — ${lock.slot}</span>
+        <button onclick="unlockSlot('${lock.__id}')" class="text-emerald-600 hover:text-emerald-800 font-medium text-xs px-2 py-1 bg-emerald-50 rounded hover:bg-emerald-100 transition">Buka Kunci</button>
+      </div>
+    `).join('');
+}
+
+async function unlockSlot(id) {
+  const result = await fbDelete('bookings', id);
+  if (result.isOk) showToast('Slot dibuka. ✓', 'success');
+  else showToast('Gagal membuka slot.', 'error');
+}
+
+// ============================================================
+// TEACHERS LIST (ADMIN)
+// ============================================================
+function renderRegisteredGurus() {
+  const search = (document.getElementById('reg-search')?.value || '').toLowerCase();
+  const filtered = allTeachers.filter(t =>
+    t.nama_guru.toLowerCase().includes(search) ||
+    (t.email && t.email.toLowerCase().includes(search))
+  );
+  const container = document.getElementById('gurus-list');
+  if (!container) return;
+  if (filtered.length === 0) { container.innerHTML = '<p class="text-gray-400 text-sm">Tiada guru terdaftar.</p>'; return; }
+  container.innerHTML = filtered.map((teacher, idx) => `
+    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+      <div class="flex-1">
+        <p class="text-sm font-semibold text-gray-800">${idx+1}. ${teacher.nama_guru}</p>
+        <div class="text-xs text-gray-500 mt-0.5">
+          ${teacher.email && teacher.email !== '-' ? `📧 ${teacher.email}` : ''}
+          ${teacher.phone && teacher.phone !== '-' ? ` 📱 ${teacher.phone}` : ''}
+          ${teacher.subjek && teacher.subjek !== '-' ? ` 📚 ${teacher.subjek}` : ''}
+        </div>
+      </div>
+      <button onclick="deleteTeacher('${teacher.__id}')" class="text-red-400 hover:text-red-600 ml-2 p-1 hover:bg-red-50 rounded-lg transition">
+        <i data-lucide="trash-2" class="w-4 h-4"></i>
+      </button>
+    </div>
+  `).join('');
+  lucide.createIcons();
+}
+
+async function deleteTeacher(id) {
+  if (!confirm('Padam guru ini? Tempahan akan kekal.')) return;
+  const result = await fbDelete('teachers', id);
+  if (result.isOk) showToast('Guru dihapus. ✓', 'success');
+  else showToast('Gagal menghapus guru.', 'error');
+}
+
+function exportGurus() {
+  if (allTeachers.length === 0) { showToast('Tiada guru untuk diexport.', 'warning'); return; }
+  let csv = 'No,Nama Guru,Email,Telefon,Matapelajaran\n';
+  allTeachers.forEach((t, i) => {
+    csv += `${i+1},"${t.nama_guru}","${t.email || '-'}","${t.phone || '-'}","${t.subjek || '-'}"\n`;
+  });
+  downloadCSV(csv, `senarai-guru-${today.toISOString().split('T')[0]}.csv`);
+  showToast('Senarai guru diexport. ✓', 'success');
+}
+
+function exportBookings() {
+  const booked = allBookings.filter(b => b.status === 'Booked');
+  if (booked.length === 0) { showToast('Tiada tempahan untuk diexport.', 'warning'); return; }
+  let csv = 'No,Nama Guru,Tarikh,Slot,Kelas,Subjek\n';
+  booked.forEach((b, i) => {
+    csv += `${i+1},"${b.nama_guru}","${b.tarikh}","${b.slot}","${b.kelas}","${b.subjek}"\n`;
+  });
+  downloadCSV(csv, `tempahan-${today.toISOString().split('T')[0]}.csv`);
+  showToast('Data tempahan diexport. ✓', 'success');
+}
+
+function downloadCSV(csv, filename) {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const colors = { success: 'bg-emerald-600', error: 'bg-red-600', warning: 'bg-amber-500', info: 'bg-blue-600' };
+  const el = document.createElement('div');
+  el.className = `toast px-4 py-3 rounded-lg text-white text-sm font-medium shadow-lg ${colors[type]} max-w-xs`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  sidebar.classList.toggle('-translate-x-full');
+  overlay.classList.toggle('hidden');
+}
+
+function closeSidebar() {
+  if (window.innerWidth < 768) {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.add('-translate-x-full');
+    overlay.classList.add('hidden');
+  }
+}
+
+function handleResize() {
+  const sidebar = document.getElementById('sidebar');
+  const mobileHeader = document.getElementById('mobile-header');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (window.innerWidth < 768) {
+    sidebar.classList.add('fixed', 'z-40', 'h-full', '-translate-x-full');
+    mobileHeader.classList.remove('hidden');
+    document.querySelector('main').classList.add('pt-14');
+  } else {
+    sidebar.classList.remove('fixed', 'z-40', '-translate-x-full');
+    mobileHeader.classList.add('hidden');
+    overlay.classList.add('hidden');
+    document.querySelector('main').classList.remove('pt-14');
+  }
+}
+
+window.addEventListener('resize', handleResize);
+handleResize();
+
+// ============================================================
+// PWA INSTALL
+// ============================================================
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (!localStorage.getItem('pwa-dismissed')) {
+    document.getElementById('install-banner').style.display = 'flex';
+  }
+});
+
+async function installPWA() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') showToast('Aplikasi berjaya dipasang! ✓', 'success');
+  deferredPrompt = null;
+  dismissInstall();
+}
+
+function dismissInstall() {
+  document.getElementById('install-banner').style.display = 'none';
+  localStorage.setItem('pwa-dismissed', '1');
+}
+
+window.addEventListener('appinstalled', () => {
+  showToast('Aplikasi dipasang pada peranti anda! ✓', 'success');
+  document.getElementById('install-banner').style.display = 'none';
+});
+
+// ============================================================
+// OFFLINE DETECTION
+// ============================================================
+window.addEventListener('online', () => { document.body.classList.remove('offline'); showToast('Sambungan dipulihkan. ✓', 'success'); });
+window.addEventListener('offline', () => { document.body.classList.add('offline'); showToast('Tiada sambungan internet!', 'error'); });
+
+// ============================================================
+// SERVICE WORKER
+// ============================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.log('SW registration failed:', err));
+  });
+}
+
+lucide.createIcons();
+</script>
+</body>
+</html>
